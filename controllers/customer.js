@@ -1,13 +1,5 @@
-const path = require( 'path' );
-const sharp = require( 'sharp' );
 const helperBcrypt = require( '../helper/helperBcrypt' );
 const helperJwt = require( '../helper/helperJwt' );
-const helperEmail = require( '../helper/helperEmail' );
-const {
-	isEmailValid
-} = require( '../helper/helperValidEmail' );
-
-const randomBytes = require( 'randombytes' );
 const customerModel = require( '../models' ).Customer;
 
 class CustomerController {
@@ -18,24 +10,42 @@ class CustomerController {
 			password
 		} = req.body;
 
-		customerModel.create( {
-				nama: nama,
-				email: email,
-				password: password,
-				foto: req.file.filename,
-				status: false,
-				confirmation_code: null,
-				reset_token: null,
-				expire_token: null
+		customerModel.findOne( {
+				where: {
+					email: email
+				}
 			} )
 			.then( customer => {
-				res.status( 200 ).send( {
-					status: 'OK',
-					data: customer,
-					error: null
-				} )
+				if ( customer ) {
+					res.status( 400 ).send( {
+						status: 'ERROR',
+						data: null,
+						error: 'email sudah terdaftar'
+					} )
+				} else {
+					helperBcrypt.buatPassword( password, ( err, passwordHash ) => {
+						customerModel.create( {
+								nama: nama,
+								email: email,
+								password: passwordHash,
+								foto: req.file.filename,
+								status: false,
+								confirmation_code: null,
+								reset_token: null,
+								expire_token: null
+							} )
+							.then( customer => {
+								res.status( 200 ).send( {
+									status: 'OK',
+									data: customer,
+									error: null
+								} )
+							} )
+							.catch( error => res.status( 500 ).send( error ) )
+					} )
+				}
 			} )
-			.catch( error => res.status( 500 ).send( error ) );
+			.catch( error => res.status( 500 ).send( error ) )
 	}
 
 	static login( req, res ) {
@@ -43,11 +53,6 @@ class CustomerController {
 			email,
 			password
 		} = req.body;
-		let validationError = [];
-
-		if ( !email || !password ) {
-			validationError.push( 'Field harus diisi' );
-		}
 
 		customerModel.findOne( {
 				where: {
@@ -56,26 +61,50 @@ class CustomerController {
 			} )
 			.then( customer => {
 				if ( customer ) {
-					console.log( 'masuk' );
 					if ( customer.status == false ) {
-						validationError.push( 'anda belum verifikasi email' );
-						console.log( validationError );
+						res.status( 400 ).send( {
+							status: 'ERROR',
+							data: null,
+							error: 'anda belum verifikasi email'
+						} )
 					} else {
-						helperBcrypt.bandingkanPassword( password, customer.password, ( err, hasil ) => {
-							if ( hasil ) {
-								console.log( 'cocok' );
+						helperBcrypt.bandingkanPassword( password, customer.password, ( err, data ) => {
+							if ( data ) {
+								let payload = {};
+								payload.id = customer.id;
+								payload.email = customer.email;
+
+								helperJwt.buatToken( payload, ( token ) => {
+									res.status( 200 ).send( {
+										status: 'SUCCESS',
+										data: {
+											token: token
+										},
+										error: null
+									} )
+								} )
 							} else {
-								validationError.push( 'password salah' );
-								// console.log( validationError );
+								res.status( 400 ).send( {
+									status: 'ERROR',
+									data: null,
+									error: 'password salah'
+								} )
 							}
-						} );
+						} )
 					}
 				} else {
-					validationError.push( 'Email belum terdaftar' )
-					// console.log( validationError );
+					res.status( 400 ).send( {
+						status: 'ERROR',
+						data: null,
+						error: 'email belum terdaftar'
+					} )
 				}
 			} )
 			.catch( error => res.status( 500 ).send( error ) )
+	}
+
+	static getProfile( req, res ) {
+		res.status( 200 ).send( 'ok' )
 	}
 }
 

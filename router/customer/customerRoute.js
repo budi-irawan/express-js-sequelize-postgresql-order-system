@@ -9,5 +9,6 @@ const customerController = require( '../../controllers/customer' );
 
 router.post( '/register', upload.single( 'foto' ), customerController.register );
 router.post( '/login', customerController.login );
+router.get( '/profile', customerController.getProfile );
 
 module.exports = router;
