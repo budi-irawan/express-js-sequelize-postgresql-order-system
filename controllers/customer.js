@@ -104,7 +104,37 @@ class CustomerController {
 	}
 
 	static getProfile( req, res ) {
-		res.status( 200 ).send( 'ok' )
+		if ( !req.headers.token ) {
+			res.status( 400 ).send( {
+				status: 'ERROR',
+				data: null,
+				error: 'token tidak ada'
+			} )
+		} else {
+			helperJwt.cekToken( req.headers.token, ( err, decoded ) => {
+				if ( err ) {
+					res.status( 400 ).send( {
+						status: 'ERROR',
+						data: null,
+						error: 'invalid token'
+					} )
+				} else {
+					customerModel.findOne( {
+							where: {
+								email: decoded.email
+							}
+						} )
+						.then( customer => {
+							res.status( 200 ).send( {
+								status: 'SUCCESS',
+								data: customer,
+								error: null
+							} )
+						} )
+						.catch( error => res.status( 500 ).send( error ) )
+				}
+			} )
+		}
 	}
 }
 
