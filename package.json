@@ -21,10 +21,8 @@
     "passport-google-oauth2": "^0.2.0",
     "pg": "^8.7.1",
     "pg-hstore": "^2.3.4",
-    "randombytes": "^2.1.0",
     "sequelize": "^6.6.5",
-    "sharp": "^0.29.0",
-    "telesignsdk": "^2.2.1"
+    "sharp": "^0.29.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.12"

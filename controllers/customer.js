@@ -1,8 +1,11 @@
 const helperBcrypt = require( '../helper/helperBcrypt' );
 const helperJwt = require( '../helper/helperJwt' );
+const helperEmail = require( '../helper/helperEmail' );
 const helperValidEmail = require( '../helper/helperValidEmail' );
 const customerModel = require( '../models' ).Customer;
-const bcrypt = require( 'bcrypt' )
+const bcrypt = require( 'bcrypt' );
+const Sequelize = require( 'sequelize' );
+const Op = Sequelize.Op;
 
 class CustomerController {
 	static async register( req, res ) {
@@ -19,7 +22,6 @@ class CustomerController {
 		if ( !nama ) {
 			errors.nama = "field nama harus diisi";
 		}
-
 		if ( !email ) {
 			errors.email = "field email harus diisi";
 		} else if ( helperValidEmail.isEmailValid( email ) == false ) {
@@ -30,18 +32,15 @@ class CustomerController {
 					email: email
 				}
 			} );
-
 			if ( emailExist ) {
 				errors.email = "email sudah terdaftar";
 			}
 		}
-
 		if ( !password ) {
 			errors.password = "field password harus diisi";
 		} else if ( password.length < 4 ) {
 			errors.password = "password minimal 4 karakter";
 		}
-
 		let filename;
 		if ( !req.file ) {
 			errors.foto = "foto belum diupload";
@@ -56,7 +55,6 @@ class CustomerController {
 			helperJwt.buatToken( payload, ( hasil ) => {
 				token = hasil;
 			} );
-
 			helperBcrypt.buatPassword( password, async ( err, passwordHash ) => {
 				if ( Object.entries( errors ).length == 0 ) {
 					const customer = await customerModel.create( {
@@ -73,6 +71,7 @@ class CustomerController {
 					response.status = 'success';
 					response.data = customer;
 					response.error = errors;
+					helperEmail.sendEmailVerification( customer.email, customer.confirmation_code );
 				} else {
 					statusCode = 400;
 					response.status = 'client error';
@@ -386,6 +385,96 @@ class CustomerController {
 				data: null,
 				error: e.message
 			} )
+		}
+	}
+
+	static async search( req, res ) {
+		const {
+			nama
+		} = req.query;
+
+		let errors = {};
+		let response = {};
+		let statusCode;
+
+		try {
+			if ( !nama ) {
+				errors.nama = "masukkan nama customer";
+			} else {
+				const customer = await customerModel.findAll( {
+					where: {
+						nama: {
+							[ Op.like ]: '%' + nama + '%'
+						}
+					}
+				} );
+
+				let rows;
+				if ( customer.length > 0 ) {
+					rows = customer;
+				} else {
+					errors.nama = "data tidak ditemukan"
+				}
+
+				if ( Object.entries( errors ).length == 0 ) {
+					statusCode = 200;
+					response.status = 'success';
+					response.data = rows;
+					response.error = errors;
+				} else {
+					statusCode = 400;
+					response.status = 'client error';
+					response.data = null;
+					response.error = errors;
+				}
+			}
+
+			res.status( statusCode ).send( response );
+		} catch ( e ) {
+			res.status( 500 ).send( "server error" );
+			console.log( e.message );
+		}
+	}
+
+	static async delete( req, res ) {
+		const {
+			id
+		} = req.params;
+
+		let errors = {};
+		let response = {};
+		let statusCode;
+
+		try {
+			const customer = await customerModel.destroy( {
+				where: {
+					id: id
+				}
+			} );
+
+			let rows;
+			if ( customer ) {
+				rows = "data berhasil dihapus";
+			} else {
+				errors.rows = "data tidak ada";
+			}
+
+			if ( Object.entries( errors ).length == 0 ) {
+				statusCode = 200;
+				response.status = 'success';
+				response.data = rows;
+				response.error = errors;
+			} else {
+				statusCode = 400;
+				response.status = 'client error';
+				response.data = null;
+				response.error = errors;
+			}
+
+			res.status( statusCode ).send( response );
+		} catch ( e ) {
+			res.status( 500 ).send( "server error" );
+			console.log( e.message );
 		}
 	}
 }

@@ -14,5 +14,7 @@ router.get( '/', customerController.getAllCustomers );
 router.put( '/verifikasi/:confirmation_code', customerController.verifikasi );
 router.post( '/lupa-password', customerController.lupaPassword );
 router.put( '/reset-password/:token', customerController.resetPassword );
+router.get( '/cari', customerController.search );
+router.delete( '/:id', customerController.delete );
 
 module.exports = router;
